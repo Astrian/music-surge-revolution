@@ -27,6 +27,7 @@
 # Utilities config
 !vite.config.js
 !biome.json
+!tsconfig.json
 
 # Husky Git hooks
 !.husky
