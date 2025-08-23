@@ -12,6 +12,7 @@
 !playground/**/*.ts
 !playground/**/*.css
 !playground/**/*.svg
+!playground/**/*.html
 !public
 !public/**/
 !public/**/*.svg
@@ -23,5 +24,10 @@
 !package.json
 !package-lock.json
 
-# Vite config
+# Utilities config
 !vite.config.js
+!biome.json
+
+# Husky Git hooks
+!.husky
+!.husky/**
