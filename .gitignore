@@ -1,0 +1,21 @@
+*
+
+# Repostory Metadata
+!LICENSE
+!README.md
+!.gitignore
+
+# Source code folder
+!src
+!src/
+!src/**/
+!src/**/*.ts
+!src/**/*.css
+!src/**/*.svg
+!public
+!public/**/
+!public/**/*.svg
+
+# npm package menifest
+!package.json
+!package-lock.json
