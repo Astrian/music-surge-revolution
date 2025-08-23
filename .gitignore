@@ -6,16 +6,22 @@
 !.gitignore
 
 # Source code folder
-!src
-!src/
-!src/**/
-!src/**/*.ts
-!src/**/*.css
-!src/**/*.svg
+!playground
+!playground/
+!playground/**/
+!playground/**/*.ts
+!playground/**/*.css
+!playground/**/*.svg
 !public
 !public/**/
 !public/**/*.svg
+!src
+!src/**/
+!src/**/*.ts
 
 # npm package menifest
 !package.json
 !package-lock.json
+
+# Vite config
+!vite.config.js
