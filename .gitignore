@@ -19,6 +19,9 @@
 !src
 !src/**/
 !src/**/*.ts
+!types/
+!types/**/
+!types/**/*.d.ts
 
 # npm package menifest
 !package.json
