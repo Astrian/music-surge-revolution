@@ -38,6 +38,13 @@ declare global {
 	 * @param {PlaybackProgress} progress - Current playback progress information
 	 */
 	type PlaybackProgressListener = (progress: PlaybackProgress) => void
+
+	/**
+	 * Listener function type for shuffle state changes.
+	 * @callback ShuffleChangeListener
+	 * @param {boolean} shuffleEnabled - The current shuffle state
+	 */
+	type ShuffleChangeListener = (shuffleEnabled: boolean) => void
 }
 
 export {}

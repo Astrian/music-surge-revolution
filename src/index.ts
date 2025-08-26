@@ -19,6 +19,8 @@ class Player {
 	private progressListeners: Set<PlaybackProgressListener>
 	/** Timer for progress updates */
 	private progressTimer: number | null
+	/** Set of listeners for shuffle state changes */
+	private shuffleListeners: Set<ShuffleChangeListener>
 	/** Web Audio API context for audio processing */
 	private context: AudioContext
 	/** Audio source node for the current track */
@@ -31,6 +33,12 @@ class Player {
 	private nextAudio: HTMLAudioElement | null
 	/** Index of the currently playing item in the queue */
 	private currentPlayingPointer: number
+	/** Store the order of the actual play queue */
+	private order: number[]
+	/** Shuffle flag */
+	private shuffle: boolean
+	/** Loop flag */
+	private loop: 'off' | 'entire_queue' | 'single_track'
 
 	/**
 	 * Creates a new player instance.
@@ -45,12 +53,16 @@ class Player {
 		this.currentPlayingChangeListeners = new Set()
 		this.progressListeners = new Set()
 		this.progressTimer = null
+		this.shuffleListeners = new Set()
 		this.context = new AudioContext()
 		this.currentSource = null
 		this.currentAudio = null
 		this.nextSource = null
 		this.nextAudio = null
 		this.currentPlayingPointer = 0
+		this.order = []
+		this.shuffle = false
+		this.loop = 'off'
 	}
 
 	/**
@@ -60,6 +72,15 @@ class Player {
 	 */
 	replaceQueue = (queue: QueueItem[]) => {
 		this.queue = queue
+
+		// reset shuffle and loop mode
+		this.shuffle = false
+		this.loop = 'off'
+
+		const newOrder = []
+		for (const i in queue) newOrder.push(parseInt(i))
+		this.order = newOrder
+
 		this.notifyQueueChange()
 	}
 
@@ -125,6 +146,24 @@ class Player {
 	}
 
 	/**
+	 * Subscribes to shuffle state changes.
+	 * @param {ShuffleChangeListener} listener - Callback function that will be called when shuffle state changes
+	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener
+	 */
+	onShuffleChange = (listener: ShuffleChangeListener): { destroy: () => void } => {
+		this.shuffleListeners.add(listener)
+
+		// Immediately call the listener with the current state
+		listener(this.shuffle)
+
+		return {
+			destroy: () => {
+				this.shuffleListeners.delete(listener)
+			},
+		}
+	}
+
+	/**
 	 * Toggles the playing state or sets it to a specific value.
 	 * @param {boolean} [playing] - Optional specific playing state. If not provided, toggles current state
 	 * @returns {Promise<void>}
@@ -157,6 +196,35 @@ class Player {
 		} else {
 			this.pausePlay()
 		}
+	}
+
+	/**
+	 * Toggles the shuffle state or sets it to a specific value.
+	 * @param {boolean} shuffle - Optional specific shuffle state. If not provided, toggles current state
+	 * @fires ShuffleChangeListener
+	 */
+	toggleShuffle = (shuffle?: boolean) => {
+		const newState = shuffle !== undefined ? shuffle : !this.shuffle
+		if (this.shuffle === newState) return
+
+		this.shuffle = newState
+		log.player(`Shuffle state changed to: ${newState}`)
+
+		// TODO: Implement actual shuffle functionality
+		// For now, just update the state and notify listeners
+
+		// Notify all shuffle listeners
+		this.shuffleListeners.forEach((listener) => {
+			listener(newState)
+		})
+	}
+
+	/**
+	 * Gets the current shuffle state.
+	 * @returns {boolean} Current shuffle state (true if enabled, false if disabled)
+	 */
+	getShuffleState = (): boolean => {
+		return this.shuffle
 	}
 
 	/**
