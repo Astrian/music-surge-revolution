@@ -86,10 +86,23 @@ class Player {
 
 	/**
 	 * Fetches the current play queue.
-	 * @returns {QueueItem[]} A deep copy of the current play queue to prevent external modification
+	 * @returns {QueueItem[]} A deep copy of the current play queue in the actual play order
 	 */
 	fetchQueue = (): QueueItem[] => {
-		return structuredClone(this.queue)
+		// If order array is empty, initialize it
+		if (this.order.length === 0) {
+			this.restoreOriginalOrder()
+		}
+
+		// Return the queue in the actual play order
+		const orderedQueue: QueueItem[] = []
+		for (const index of this.order) {
+			if (this.queue[index]) {
+				orderedQueue.push(this.queue[index])
+			}
+		}
+
+		return structuredClone(orderedQueue)
 	}
 
 	/**
@@ -202,6 +215,7 @@ class Player {
 	 * Toggles the shuffle state or sets it to a specific value.
 	 * @param {boolean} shuffle - Optional specific shuffle state. If not provided, toggles current state
 	 * @fires ShuffleChangeListener
+	 * @fires QueueChangeListener
 	 */
 	toggleShuffle = (shuffle?: boolean) => {
 		const newState = shuffle !== undefined ? shuffle : !this.shuffle
@@ -210,13 +224,20 @@ class Player {
 		this.shuffle = newState
 		log.player(`Shuffle state changed to: ${newState}`)
 
-		// TODO: Implement actual shuffle functionality
-		// For now, just update the state and notify listeners
+		// Apply or remove shuffle based on the new state
+		if (newState) {
+			this.shuffleQueue()
+		} else {
+			this.restoreOriginalOrder()
+		}
 
 		// Notify all shuffle listeners
 		this.shuffleListeners.forEach((listener) => {
 			listener(newState)
 		})
+
+		// Notify queue listeners about the new order
+		this.notifyQueueChange()
 	}
 
 	/**
@@ -326,13 +347,15 @@ class Player {
 
 	/**
 	 * Notifies all queue listeners about queue changes.
-	 * Sends a deep copy of the queue to prevent external modifications.
+	 * Sends a deep copy of the queue in the actual play order.
 	 * @private
 	 */
 	private notifyQueueChange = () => {
-		const queueCopy = structuredClone(this.queue)
+		// Get the queue in the current play order
+		const orderedQueue = this.fetchQueue()
+
 		this.queueChangeListeners.forEach((listener) => {
-			listener(queueCopy)
+			listener(orderedQueue)
 		})
 	}
 
@@ -344,8 +367,9 @@ class Player {
 	 * @throws {DOMException} When autoplay is blocked or audio format is unsupported
 	 */
 	private async startPlay() {
-		// fetch the first item inside the queue
-		log.player(this.queue[this.currentPlayingPointer])
+		// fetch the current item from the queue based on order
+		const currentTrack = this.getCurrentTrack()
+		log.player(currentTrack)
 
 		// Resume AudioContext if it's suspended (due to browser autoplay policy)
 		if (this.context.state === 'suspended') {
@@ -372,8 +396,8 @@ class Player {
 		}
 
 		// Create new audio if it doesn't exist
-		if (!this.currentAudio) {
-			this.currentAudio = new Audio(this.queue[this.currentPlayingPointer].url)
+		if (!this.currentAudio && currentTrack) {
+			this.currentAudio = new Audio(currentTrack.url)
 			this.currentAudio.crossOrigin = 'true'
 			this.currentSource = this.context.createMediaElementSource(this.currentAudio)
 			this.currentSource.connect(this.context.destination)
@@ -444,7 +468,10 @@ class Player {
 	 * @private
 	 */
 	private reportMetadata() {
-		navigator.mediaSession.metadata = new MediaMetadata(this.queue[this.currentPlayingPointer].metadata)
+		const currentTrack = this.getCurrentTrack()
+		if (currentTrack?.metadata) {
+			navigator.mediaSession.metadata = new MediaMetadata(currentTrack.metadata)
+		}
 		navigator.mediaSession.setActionHandler('nexttrack', this.skipToNext)
 		navigator.mediaSession.setActionHandler('previoustrack', this.skipToPrevious)
 		navigator.mediaSession.setActionHandler('play', async () => {
@@ -457,8 +484,10 @@ class Player {
 			await this.togglePlaying(false)
 		})
 		// Report to current playing listeners
-		for (const listener of this.currentPlayingChangeListeners) {
-			listener(this.queue[this.currentPlayingPointer])
+		if (currentTrack) {
+			for (const listener of this.currentPlayingChangeListeners) {
+				listener(currentTrack)
+			}
 		}
 	}
 
@@ -544,7 +573,8 @@ class Player {
 			this.currentAudio.currentTime = 0
 			this.currentAudio.volume = 1
 			await this.currentAudio.play()
-			log.player(`Playing next track: ${this.queue[this.currentPlayingPointer]?.metadata?.title || 'Unknown'}`)
+			const nextTrack = this.getCurrentTrack()
+			log.player(`Playing next track: ${nextTrack?.metadata?.title || 'Unknown'}`)
 
 			// Update metadata
 			this.reportMetadata()
@@ -575,15 +605,18 @@ class Player {
 
 		// Check if there's a next track in the queue
 		const nextPointer = this.currentPlayingPointer + 1
-		if (!this.queue[nextPointer]) {
+		const actualNextIndex = this.getActualQueueIndex(nextPointer)
+		const nextTrack = this.queue[actualNextIndex]
+
+		if (!nextTrack) {
 			log.player('No next track in queue, skip schedule')
 			return
 		}
 
-		log.player(`Scheduling next track: ${this.queue[nextPointer]?.metadata?.title || 'Unknown'}`)
+		log.player(`Scheduling next track: ${nextTrack?.metadata?.title || 'Unknown'}`)
 
 		// Create and preload the next audio element
-		this.nextAudio = new Audio(this.queue[nextPointer].url)
+		this.nextAudio = new Audio(nextTrack.url)
 		this.nextAudio.crossOrigin = 'true'
 		this.nextAudio.preload = 'auto' // Preload the entire audio
 
@@ -694,8 +727,15 @@ class Player {
 		// Update pointer
 		this.currentPlayingPointer = trackIndex
 
+		// Get the actual track from the queue
+		const track = this.getCurrentTrack()
+		if (!track) {
+			log.player('Track not found at index:', trackIndex)
+			return
+		}
+
 		// Create new audio element but don't play
-		this.currentAudio = new Audio(this.queue[trackIndex].url)
+		this.currentAudio = new Audio(track.url)
 		this.currentAudio.crossOrigin = 'true'
 		this.currentSource = this.context.createMediaElementSource(this.currentAudio)
 		this.currentSource.connect(this.context.destination)
@@ -737,7 +777,82 @@ class Player {
 		this.reportMetadata()
 		this.notifyQueueChange()
 
-		log.player(`Switched to track: ${this.queue[trackIndex]?.metadata?.title || 'Unknown'}`)
+		log.player(`Switched to track: ${track?.metadata?.title || 'Unknown'}`)
+	}
+
+	/**
+	 * Gets the actual queue index based on the current order.
+	 * @private
+	 * @param {number} orderIndex - The index in the order array
+	 * @returns {number} The actual index in the queue array
+	 */
+	private getActualQueueIndex(orderIndex: number): number {
+		// If order array is empty, initialize it
+		if (this.order.length === 0) {
+			this.restoreOriginalOrder()
+		}
+
+		// Return the actual queue index from the order array
+		return this.order[orderIndex] ?? orderIndex
+	}
+
+	/**
+	 * Gets the current playing track from the queue.
+	 * @private
+	 * @returns {QueueItem | undefined} The current playing track
+	 */
+	private getCurrentTrack(): QueueItem | undefined {
+		const actualIndex = this.getActualQueueIndex(this.currentPlayingPointer)
+		return this.queue[actualIndex]
+	}
+
+	/**
+	 * Shuffle the queue using Fisher-Yates algorithm.
+	 * Keeps the current and previous items in place if currently playing.
+	 * @private
+	 */
+	private shuffleQueue() {
+		// if currently playing or current pointer is not in the first item,
+		// the algorithm will keep the current and previous items as is.
+		const shouldKeepPrevious = this.isPlaying || this.currentPlayingPointer > 0
+
+		const startShuffleFrom = shouldKeepPrevious ? this.currentPlayingPointer + 1 : 0
+
+		const keepRemainRange: number[] = []
+		const shuffleRange: number[] = []
+		for (const i in this.queue) {
+			if (parseInt(i) < startShuffleFrom) keepRemainRange.push(parseInt(i))
+			else shuffleRange.push(parseInt(i))
+		}
+
+		// Shuffle the shuffleRange using Fisher-Yates algorithm
+		for (let i = shuffleRange.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1))
+			;[shuffleRange[i], shuffleRange[j]] = [shuffleRange[j], shuffleRange[i]]
+		}
+
+		// Combine the kept items with the shuffled items
+		this.order = [...keepRemainRange, ...shuffleRange]
+
+		log.player('Queue shuffled. New order:', this.order)
+	}
+
+	/**
+	 * Restore the queue to its original order.
+	 * @private
+	 */
+	private restoreOriginalOrder() {
+		// preserve current playing item
+		const currentPlaying = this.order[this.currentPlayingPointer]
+
+		this.order = []
+		for (const i in this.queue) {
+			this.order.push(parseInt(i))
+		}
+
+		this.currentPlayingPointer = currentPlaying
+
+		log.player('Queue restored to original order')
 	}
 }
 
