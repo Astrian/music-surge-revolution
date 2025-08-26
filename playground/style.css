@@ -60,3 +60,24 @@ body {
 #forward_btn {
 	font-size: 1.2rem;
 }
+
+#progress_bar {
+	width: 15rem;
+	height: 0.125rem;
+	background: rgb(206, 206, 206);
+}
+
+#progress_bar_inner {
+	background: black;
+	height: 0.125rem;
+}
+
+#time_indicator {
+	display: flex;
+	justify-content: space-between;
+}
+
+#current_time,
+#left_time {
+	font-size: 0.75rem;
+}

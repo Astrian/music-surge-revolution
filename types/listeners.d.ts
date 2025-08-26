@@ -19,6 +19,25 @@ declare global {
 	 * @param {QueueItem} track - Information of the track which is currently playing
 	 */
 	type CurrentPlayingChangeListener = (track: QueueItem) => void
+
+	/**
+	 * Progress state object containing current playback position and duration.
+	 */
+	interface PlaybackProgress {
+		/** Current playback position in seconds */
+		currentTime: number
+		/** Total duration of the track in seconds */
+		duration: number
+		/** Progress as a percentage (0-100) */
+		percentage: number
+	}
+
+	/**
+	 * Listener function type for playback progress changes.
+	 * @callback PlaybackProgressListener
+	 * @param {PlaybackProgress} progress - Current playback progress information
+	 */
+	type PlaybackProgressListener = (progress: PlaybackProgress) => void
 }
 
 export {}

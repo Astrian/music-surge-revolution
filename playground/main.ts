@@ -84,3 +84,29 @@ playerInstance.onCurrentPlayingChange((track: QueueItem) => {
 
 	document.getElementById('track_secondary')!.innerText = `${artist} — ${album}`
 })
+
+playerInstance.onProgressChange((progress) => {
+	document.getElementById('progress_bar_inner')!.style.width = `${progress.percentage}%`
+
+	const currentTimeMin = Math.floor(progress.currentTime / 60)
+	const currentTimeSec = Math.floor(progress.currentTime) % 60
+
+	document.getElementById('current_time')!.innerText =
+		`${currentTimeMin}:${currentTimeSec < 10 ? `0${currentTimeSec}` : currentTimeSec}`
+
+	const leftTime = Math.floor(progress.duration) - Math.floor(progress.currentTime)
+
+	const leftTimeMin = Math.floor(leftTime / 60)
+	const leftTimeSec = Math.floor(leftTime) % 60
+
+	document.getElementById('left_time')!.innerText =
+		`-${leftTimeMin}:${leftTimeSec < 10 ? `0${leftTimeSec}` : leftTimeSec}`
+})
+
+document.getElementById('rewind_btn')?.addEventListener('click', () => {
+	playerInstance.skipToPrevious()
+})
+
+document.getElementById('forward_btn')?.addEventListener('click', () => {
+	playerInstance.skipToNext()
+})

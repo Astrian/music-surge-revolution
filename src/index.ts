@@ -15,6 +15,10 @@ class Player {
 	private queueChangeListeners: Set<QueueChangeListener>
 	/** Set of listeners of playing track changes */
 	private currentPlayingChangeListeners: Set<CurrentPlayingChangeListener>
+	/** Set of listeners for playback progress changes */
+	private progressListeners: Set<PlaybackProgressListener>
+	/** Timer for progress updates */
+	private progressTimer: number | null
 	/** Web Audio API context for audio processing */
 	private context: AudioContext
 	/** Audio source node for the current track */
@@ -39,6 +43,8 @@ class Player {
 		this.playStateListeners = new Set()
 		this.queueChangeListeners = new Set()
 		this.currentPlayingChangeListeners = new Set()
+		this.progressListeners = new Set()
+		this.progressTimer = null
 		this.context = new AudioContext()
 		this.currentSource = null
 		this.currentAudio = null
@@ -94,6 +100,31 @@ class Player {
 	}
 
 	/**
+	 * Subscribes to playback progress changes.
+	 * @param {PlaybackProgressListener} listener - Callback function that will be called when playback progress changes
+	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener
+	 */
+	onProgressChange = (listener: PlaybackProgressListener): { destroy: () => void } => {
+		this.progressListeners.add(listener)
+
+		// Start progress updates if this is the first listener and audio is playing
+		if (this.progressListeners.size === 1 && this.isPlaying && this.currentAudio) {
+			this.startProgressUpdates()
+		}
+
+		return {
+			destroy: () => {
+				this.progressListeners.delete(listener)
+
+				// Stop progress updates if no more listeners
+				if (this.progressListeners.size === 0) {
+					this.stopProgressUpdates()
+				}
+			},
+		}
+	}
+
+	/**
 	 * Toggles the playing state or sets it to a specific value.
 	 * @param {boolean} [playing] - Optional specific playing state. If not provided, toggles current state
 	 * @returns {Promise<void>}
@@ -104,6 +135,14 @@ class Player {
 		if (this.isPlaying === newState) return
 		this.isPlaying = newState
 		log.player(`Play state changed to: ${newState}`)
+
+		// Start or stop progress updates based on playing state and listeners
+		if (newState && this.progressListeners.size > 0) {
+			this.startProgressUpdates()
+		} else {
+			this.stopProgressUpdates()
+		}
+
 		this.playStateListeners.forEach((listener) => {
 			listener(newState)
 		})
@@ -515,6 +554,52 @@ class Player {
 		)
 
 		log.player('Next track scheduled and preloading')
+	}
+
+	/**
+	 * Starts periodic progress updates for progress listeners.
+	 * Updates are sent approximately every 100ms while audio is playing.
+	 * @private
+	 */
+	private startProgressUpdates() {
+		if (this.progressTimer !== null) {
+			this.stopProgressUpdates()
+		}
+
+		this.progressTimer = window.setInterval(() => {
+			if (this.currentAudio && this.progressListeners.size > 0) {
+				const currentTime = this.currentAudio.currentTime
+				const duration = this.currentAudio.duration
+
+				if (!isNaN(duration) && duration > 0) {
+					const percentage = (currentTime / duration) * 100
+
+					const progress: PlaybackProgress = {
+						currentTime,
+						duration,
+						percentage,
+					}
+
+					this.progressListeners.forEach((listener) => {
+						listener(progress)
+					})
+				}
+			} else {
+				// Stop timer if no audio or no listeners
+				this.stopProgressUpdates()
+			}
+		}, 100) // Update every 100ms
+	}
+
+	/**
+	 * Stops periodic progress updates.
+	 * @private
+	 */
+	private stopProgressUpdates() {
+		if (this.progressTimer !== null) {
+			window.clearInterval(this.progressTimer)
+			this.progressTimer = null
+		}
 	}
 }
 
