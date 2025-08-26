@@ -102,7 +102,25 @@ class Player {
 	skipToNext = async () => {
 		if (this.currentPlayingPointer + 1 < this.queue.length) {
 			log.player('Skipping to next track')
-			await this.playNext()
+
+			// Clean up current audio first
+			if (this.currentAudio) {
+				this.currentAudio.pause()
+				this.currentAudio.removeEventListener('ended', () => {})
+				this.currentAudio.removeEventListener('timeupdate', () => {})
+				this.currentAudio = null
+				this.currentSource = null
+			}
+
+			// Clean up next audio if exists
+			if (this.nextAudio) {
+				this.nextAudio = null
+				this.nextSource = null
+			}
+
+			// Move to next track and start playing
+			this.currentPlayingPointer++
+			await this.startPlay()
 		} else {
 			log.player('No next track available')
 		}
@@ -114,9 +132,26 @@ class Player {
 	skipToPrevious = async () => {
 		// If current track has played less than 5 seconds, go to previous track
 		// Otherwise, restart the current track
-		if ((this.currentAudio?.currentTime ?? 0) < 5) {
+		if ((this.currentAudio?.currentTime ?? 0) < 5 && this.currentPlayingPointer > 0) {
+			log.player('current play progress is less than 5 secs')
 			if (this.currentPlayingPointer > 0) {
 				log.player('Skipping to previous track')
+
+				// Clean up current audio
+				if (this.currentAudio) {
+					this.currentAudio.pause()
+					this.currentAudio.removeEventListener('ended', () => {})
+					this.currentAudio.removeEventListener('timeupdate', () => {})
+					this.currentAudio = null
+					this.currentSource = null
+				}
+
+				// Clean up next audio if exists
+				if (this.nextAudio) {
+					this.nextAudio = null
+					this.nextSource = null
+				}
+
 				this.currentPlayingPointer -= 1
 				await this.startPlay()
 			} else {
