@@ -11,8 +11,8 @@ playerInstance.onQueueChange((queue) => {
 })
 
 playerInstance.onPlayStateChange((state) => {
-	if (state) document.getElementById('toggleBtn')!.innerHTML = `<i class="ri-pause-fill"></i>`
-	else document.getElementById('toggleBtn')!.innerHTML = `<i class="ri-play-fill"></i>`
+	if (state) document.getElementById('play_pause_btn')!.innerHTML = `<i class="ri-pause-fill"></i>`
+	else document.getElementById('play_pause_btn')!.innerHTML = `<i class="ri-play-fill"></i>`
 })
 
 playerInstance.replaceQueue([
@@ -48,7 +48,7 @@ playerInstance.replaceQueue([
 	},
 ])
 
-document.getElementById('toggleBtn')?.addEventListener('click', () => {
+document.getElementById('play_pause_btn')?.addEventListener('click', () => {
 	playerInstance.togglePlaying()
 })
 
@@ -69,4 +69,18 @@ playerInstance.onCurrentPlayingChange((track: QueueItem) => {
 	}
 	if (artwork_url !== '') document.getElementById('artwork')!.innerHTML = `<img src="${artwork_url}" alt="Artwork" />`
 	else document.getElementById('artwork')!.innerHTML = ``
+
+	// Attach track title
+	if (track.metadata?.title) document.getElementById('track_title')!.innerText = track.metadata.title
+	else document.getElementById('track_title')!.innerText = 'Unknown track title'
+
+	// Attach artist and album
+	let artist = 'Unknown artist'
+	let album = 'Unknown album'
+
+	if (track.metadata?.artist) artist = track.metadata.artist
+
+	if (track.metadata?.album) album = track.metadata.album
+
+	document.getElementById('track_secondary')!.innerText = `${artist} — ${album}`
 })

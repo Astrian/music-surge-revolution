@@ -9,11 +9,17 @@
 	</head>
 	<body>
 		<div id="app">
-			<div id="artwork">
-
-			</div>
-			<div>
-				<button id="toggleBtn"><i class="ri-play-fill"></i></button>
+			<div id="now_playing">
+				<div id="artwork"></div>
+				<div id="metadata">
+					<div id="track_title">Not playing</div>
+					<div id="track_secondary">Unknown artist — Unknown album</div>
+				</div>
+				<div id="controller">
+					<button id="rewind_btn"><i class="ri-rewind-fill"></i></button>
+					<button id="play_pause_btn"><i class="ri-play-fill"></i></button>
+					<button id="forward_btn"><i class="ri-speed-fill"></i></button>
+				</div>
 			</div>
 		</div>
 		<script type="module" src="/main.ts"></script>

@@ -1,4 +1,4 @@
-#app {
+body {
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -6,10 +6,57 @@
 	font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
+#app {
+	display: flex;
+	flex-direction: column;
+}
+
 #artwork {
-	width: 10rem;
-	height: 10rem;
-	background-color: gray;
-	border-radius: 0.5rem;
+	width: 15rem;
+	height: 15rem;
+	background-color: rgb(196, 202, 205);
 	overflow: hidden;
+}
+
+#now_playing {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	align-items: center;
+	width: 15rem;
+}
+
+#track_secondary {
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+	width: 15rem;
+}
+
+#controller {
+	flex: 1;
+	display: flex;
+	justify-content: space-around;
+	width: 100%;
+}
+
+#track_title {
+	font-size: 1rem;
+	font-weight: bold;
+}
+
+#play_pause_btn {
+	font-size: 2rem;
+	width: 3rem;
+	height: 3rem;
+	border: 0.125rem solid black;
+	border-radius: 9999rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+#rewind_btn,
+#forward_btn {
+	font-size: 1.2rem;
 }
