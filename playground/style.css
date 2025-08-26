@@ -1,7 +1,15 @@
-body {
+#app {
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	min-height: 100vh;
 	font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+#artwork {
+	width: 10rem;
+	height: 10rem;
+	background-color: gray;
+	border-radius: 0.5rem;
+	overflow: hidden;
 }
