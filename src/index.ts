@@ -152,6 +152,7 @@ class Player {
 			// Move to next track and start playing
 			this.currentPlayingPointer++
 			await this.startPlay()
+			this.reportMetadata()
 		} else {
 			log.player('No next track available')
 		}
@@ -188,6 +189,7 @@ class Player {
 
 				this.currentPlayingPointer -= 1
 				await this.startPlay()
+				this.reportMetadata()
 			} else {
 				// Restart current track if at the beginning of queue
 				if (this.currentAudio) {
