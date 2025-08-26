@@ -112,12 +112,22 @@ class Player {
 	 * Skip to the previous track in the queue.
 	 */
 	skipToPrevious = async () => {
-		if (this.currentPlayingPointer > 0) {
-			log.player('Skipping to previous track')
-			this.currentPlayingPointer -= 1
-			await this.startPlay()
+		// If current track has played less than 5 seconds, go to previous track
+		// Otherwise, restart the current track
+		if ((this.currentAudio?.currentTime ?? 0) < 5) {
+			if (this.currentPlayingPointer > 0) {
+				log.player('Skipping to previous track')
+				this.currentPlayingPointer -= 1
+				await this.startPlay()
+			} else {
+				// Restart current track if at the beginning of queue
+				if (this.currentAudio) {
+					this.currentAudio.currentTime = 0
+					await this.currentAudio.play()
+				}
+			}
 		} else {
-			// Restart current track if at the beginning of queue
+			// Restart current track from beginning
 			if (this.currentAudio) {
 				this.currentAudio.currentTime = 0
 				await this.currentAudio.play()
@@ -159,30 +169,51 @@ class Player {
 			log.player('AudioContext resumed')
 		}
 
-		this.currentAudio = new Audio(this.queue[this.currentPlayingPointer].url)
-		this.currentAudio.crossOrigin = 'true'
-		this.currentSource = this.context.createMediaElementSource(this.currentAudio)
-		this.currentSource.connect(this.context.destination)
+		// If current audio exists and is paused, resume it
+		if (this.currentAudio?.paused) {
+			await this.currentAudio.play()
+			log.player('Resumed playback')
 
-		// Add event listener for when the current track ends
-		this.currentAudio.addEventListener('ended', () => {
-			log.player('Current track ended, switching to next')
-			this.playNext()
-		})
-
-		// Add event listener for timeupdate to schedule next track at the right time
-		this.currentAudio.addEventListener('timeupdate', () => {
-			// Schedule next track when current track is 20 seconds from ending (or 50% complete for short tracks)
-			if (this.currentAudio && !this.nextAudio) {
+			// Also check if we need to schedule next track
+			if (!this.nextAudio && this.currentAudio) {
 				const timeRemaining = this.currentAudio.duration - this.currentAudio.currentTime
 				const halfwayPoint = this.currentAudio.duration / 2
 
-				// Preload when: 20 seconds remaining OR halfway through (whichever comes first)
+				// Schedule next if conditions are met
 				if (timeRemaining < 20 || this.currentAudio.currentTime > halfwayPoint) {
 					this.scheduleNext()
 				}
 			}
-		})
+			return
+		}
+
+		// Create new audio if it doesn't exist
+		if (!this.currentAudio) {
+			this.currentAudio = new Audio(this.queue[this.currentPlayingPointer].url)
+			this.currentAudio.crossOrigin = 'true'
+			this.currentSource = this.context.createMediaElementSource(this.currentAudio)
+			this.currentSource.connect(this.context.destination)
+
+			// Add event listener for when the current track ends
+			this.currentAudio.addEventListener('ended', () => {
+				log.player('Current track ended, switching to next')
+				this.playNext()
+			})
+
+			// Add event listener for timeupdate to schedule next track at the right time
+			this.currentAudio.addEventListener('timeupdate', () => {
+				// Schedule next track when current track is 20 seconds from ending (or 50% complete for short tracks)
+				if (this.currentAudio && !this.nextAudio) {
+					const timeRemaining = this.currentAudio.duration - this.currentAudio.currentTime
+					const halfwayPoint = this.currentAudio.duration / 2
+
+					// Preload when: 20 seconds remaining OR halfway through (whichever comes first)
+					if (timeRemaining < 20 || this.currentAudio.currentTime > halfwayPoint) {
+						this.scheduleNext()
+					}
+				}
+			})
+		}
 
 		// Handle play() promise with proper error catching
 		try {
@@ -219,6 +250,17 @@ class Player {
 
 	private reportMetadata() {
 		navigator.mediaSession.metadata = new MediaMetadata(this.queue[this.currentPlayingPointer].metadata)
+		navigator.mediaSession.setActionHandler('nexttrack', this.skipToNext)
+		navigator.mediaSession.setActionHandler('previoustrack', this.skipToPrevious)
+		navigator.mediaSession.setActionHandler('play', async () => {
+			await this.togglePlaying(true)
+		})
+		navigator.mediaSession.setActionHandler('pause', async () => {
+			await this.togglePlaying(false)
+		})
+		navigator.mediaSession.setActionHandler('stop', async () => {
+			await this.togglePlaying(false)
+		})
 	}
 
 	private async playNext() {
