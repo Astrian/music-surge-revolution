@@ -8,6 +8,10 @@ class Player {
 	private isPlaying: boolean
 	private playStateListeners: Set<PlayStateChangeListener>
 	private queueChangeListeners: Set<QueueChangeListener>
+	private context: AudioContext
+	private currentSource: MediaElementAudioSourceNode | null
+	private currentAudio: HTMLAudioElement | null
+	private currentPlayingPointer: number
 
 	/**
 	 * Create a new player instance.
@@ -18,6 +22,10 @@ class Player {
 		this.isPlaying = false
 		this.playStateListeners = new Set()
 		this.queueChangeListeners = new Set()
+		this.context = new AudioContext()
+		this.currentSource = null
+		this.currentAudio = null
+		this.currentPlayingPointer = 0
 	}
 
 	/**
@@ -55,14 +63,24 @@ class Player {
 	 * Set the playing state and notify all listeners.
 	 * @param playing The new playing state.
 	 */
-	togglePlaying = (playing?: boolean) => {
-		const newState = playing ? playing : !this.isPlaying
-		if (this.isPlaying !== newState) {
-			this.isPlaying = newState
-			log.player(`Play state changed to: ${newState}`)
-			this.playStateListeners.forEach((listener) => {
-				listener(newState)
-			})
+	togglePlaying = async (playing?: boolean) => {
+		const newState = playing !== undefined ? playing : !this.isPlaying
+		if (this.isPlaying === newState) return
+		this.isPlaying = newState
+		log.player(`Play state changed to: ${newState}`)
+		this.playStateListeners.forEach((listener) => {
+			listener(newState)
+		})
+		this.reportMetadata()
+		if (newState) {
+			try {
+				await this.startPlay()
+			} catch (error) {
+				log.player('Failed to start playback:', error)
+				// Playback failed, state already reset in startPlay if needed
+			}
+		} else {
+			this.pausePlay()
 		}
 	}
 
@@ -96,6 +114,53 @@ class Player {
 		this.queueChangeListeners.forEach((listener) => {
 			listener(queueCopy)
 		})
+	}
+
+	private async startPlay() {
+		// fetch the first item inside the queue
+		log.player(this.queue[this.currentPlayingPointer])
+
+		// Resume AudioContext if it's suspended (due to browser autoplay policy)
+		if (this.context.state === 'suspended') {
+			await this.context.resume()
+			log.player('AudioContext resumed')
+		}
+
+		this.currentAudio = new Audio(this.queue[this.currentPlayingPointer].url)
+		this.currentSource = this.context.createMediaElementSource(this.currentAudio)
+		this.currentSource.connect(this.context.destination)
+
+		// Handle play() promise with proper error catching
+		try {
+			await this.currentAudio.play()
+			log.player('Audio playback started successfully')
+		} catch (error) {
+			log.player('Audio playback failed:', error)
+
+			// Common fixes for autoplay issues
+			if (error instanceof DOMException) {
+				if (error.name === 'NotAllowedError') {
+					// Browser autoplay policy blocked the playback
+					log.player('Autoplay blocked by browser policy. User interaction required.')
+					// Reset playing state since we couldn't actually play
+					this.isPlaying = false
+					this.playStateListeners.forEach((listener) => {
+						listener(false)
+					})
+				} else if (error.name === 'NotSupportedError') {
+					log.player('Audio format not supported')
+				}
+			}
+			throw error // Re-throw to let caller handle it
+		}
+	}
+
+	private async pausePlay() {
+		this.currentAudio?.pause()
+	}
+
+	private reportMetadata() {
+		navigator.mediaSession.metadata = new MediaMetadata(this.queue[this.currentPlayingPointer].metadata)
 	}
 }
 

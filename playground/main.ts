@@ -17,12 +17,18 @@ const playingStateListener = playerInstance.onPlayStateChange((state) => {
 
 playerInstance.replaceQueue([
 	{
-		url: 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/858/outfoxing.mp3',
+		url: '/sample1.wav',
 		metadata: {
-			title: 'Outfoxing the Fox',
-			artist: 'Kevin MacLeod',
-			album: 'Miami Nights',
-			artwork: '',
+			title: 'Bad Mushroom',
+			artist: 'FatGuy & DRobot',
+			album: 'Bad Mushroom - Single',
+			artwork: [
+				{
+					src: '/artwork1.jpg',
+					sizes: '500x500',
+					type: 'image/jpeg',
+				},
+			],
 		},
 	},
 ])

@@ -24,4 +24,5 @@ export default defineConfig(({ mode }) => ({
 	},
 	root: mode === 'development' ? path.resolve(__dirname, 'playground') : path.resolve(__dirname),
 	logLevel: 'info',
+	publicDir: mode === 'development' ? path.resolve(__dirname, 'public') : 'public',
 }))
