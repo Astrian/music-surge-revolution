@@ -1,20 +1,6 @@
 import log from './debug'
 
 /**
- * Listener function type for play state changes.
- * @callback PlayStateChangeListener
- * @param {boolean} isPlaying - The current playing state
- */
-type PlayStateChangeListener = (isPlaying: boolean) => void
-
-/**
- * Listener function type for queue changes.
- * @callback QueueChangeListener
- * @param {QueueItem[]} queue - The updated queue array
- */
-type QueueChangeListener = (queue: QueueItem[]) => void
-
-/**
  * Music player class that handles audio playback with queue management and seamless transitions.
  * @class Player
  */
@@ -27,6 +13,8 @@ class Player {
 	private playStateListeners: Set<PlayStateChangeListener>
 	/** Set of listeners for queue changes */
 	private queueChangeListeners: Set<QueueChangeListener>
+	/** Set of listeners of playing track changes */
+	private currentPlayingChangeListeners: Set<CurrentPlayingChangeListener>
 	/** Web Audio API context for audio processing */
 	private context: AudioContext
 	/** Audio source node for the current track */
@@ -50,6 +38,7 @@ class Player {
 		this.isPlaying = false
 		this.playStateListeners = new Set()
 		this.queueChangeListeners = new Set()
+		this.currentPlayingChangeListeners = new Set()
 		this.context = new AudioContext()
 		this.currentSource = null
 		this.currentAudio = null
@@ -86,6 +75,20 @@ class Player {
 		return {
 			destroy: () => {
 				this.playStateListeners.delete(listener)
+			},
+		}
+	}
+
+	/**
+	 * Subscribes to current playing track changes.
+	 * @param {CurrentPlayingChangeListener} listener - Callback function that will be called when current playing track changes
+	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener
+	 */
+	onCurrentPlayingChange = (listener: CurrentPlayingChangeListener): { destroy: () => void } => {
+		this.currentPlayingChangeListeners.add(listener)
+		return {
+			destroy: () => {
+				this.currentPlayingChangeListeners.delete(listener)
 			},
 		}
 	}
@@ -352,6 +355,10 @@ class Player {
 		navigator.mediaSession.setActionHandler('stop', async () => {
 			await this.togglePlaying(false)
 		})
+		// Report to current playing listeners
+		for (const listener of this.currentPlayingChangeListeners) {
+			listener(this.queue[this.currentPlayingPointer])
+		}
 	}
 
 	/**
