@@ -6,8 +6,32 @@ import { Player } from '../src'
 const playerInstance = new Player()
 
 playerInstance.onQueueChange((queue) => {
-	console.log('queue changes')
-	console.log(queue)
+	let list_html = ''
+
+	for (const item of queue) {
+		let artwork_url = ''
+		const size = 0
+		for (const artwork of item.metadata?.artwork ?? []) {
+			if (artwork.sizes && !isNaN(parseInt(artwork.sizes.split('x')[0]))) {
+				if (parseInt(artwork.sizes.split('x')[0]) > size) {
+					artwork_url = artwork.src
+				}
+			} else if (artwork_url !== '') {
+				artwork_url = artwork.src
+			}
+		}
+		list_html += `<div class="queue_item">
+						<div class="artwork">
+							${artwork_url === '' ? '' : `<img src="${artwork_url}" />`}
+						</div>
+						<div class="text_content">
+							<div class="title">${item.metadata?.title ?? 'Unknown title'}</div>
+							<div class="secondary">${item.metadata?.artist ?? 'Unknown artist'} — ${item.metadata?.album ?? 'Unknown album'}</div>
+						</div>
+					</div>`
+	}
+
+	document.getElementById('queue')!.innerHTML = list_html
 })
 
 playerInstance.onPlayStateChange((state) => {

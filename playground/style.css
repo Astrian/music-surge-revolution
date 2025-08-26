@@ -8,7 +8,7 @@ body {
 
 #app {
 	display: flex;
-	flex-direction: column;
+	gap: 2rem;
 }
 
 #artwork {
@@ -80,4 +80,66 @@ body {
 #current_time,
 #left_time {
 	font-size: 0.75rem;
+}
+
+#play_queue {
+	width: 15rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+#play_mode_control {
+	display: flex;
+	height: 1.5rem;
+}
+
+#shuffle_btn,
+#loop_btn {
+	flex: 1;
+}
+
+#queue {
+	border-top: 0.125rem solid black;
+	border-bottom: 0.125rem solid black;
+	flex: 1;
+	overflow: auto;
+}
+
+.divider {
+	height: 100%;
+	width: 0.125rem;
+	background-color: black;
+}
+
+.queue_item {
+	display: flex;
+	margin: 1rem 0;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.queue_item .artwork {
+	background-color: gray;
+	width: 2.5rem;
+	height: 2.5rem;
+}
+
+.queue_item .text_content {
+	display: flex;
+	flex-direction: column;
+	font-size: 0.75rem;
+	min-width: 0;
+	flex: 1;
+}
+
+.queue_item .text_content .title {
+	font-weight: bold;
+}
+
+.queue_item .text_content .title,
+.queue_item .text_content .secondary {
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
 }
