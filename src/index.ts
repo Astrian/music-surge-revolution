@@ -77,6 +77,9 @@ class Player {
 		this.shuffle = false
 		this.loop = 'off'
 
+		// remove the audio, to prevent some edge cases
+		this.currentAudio = null
+
 		const newOrder = []
 		for (const i in queue) newOrder.push(parseInt(i))
 		this.order = newOrder
@@ -425,7 +428,7 @@ class Player {
 
 		// Handle play() promise with proper error catching
 		try {
-			await this.currentAudio.play()
+			await this.currentAudio?.play()
 			log.player('Audio playback started successfully')
 		} catch (error) {
 			log.player('Audio playback failed:', error)
@@ -814,7 +817,8 @@ class Player {
 	private shuffleQueue() {
 		// if currently playing or current pointer is not in the first item,
 		// the algorithm will keep the current and previous items as is.
-		const shouldKeepPrevious = this.isPlaying || this.currentPlayingPointer > 0
+		const shouldKeepPrevious =
+			this.isPlaying || this.currentPlayingPointer > 0 || (!!this.currentAudio && this.currentAudio.currentTime !== 0)
 
 		const startShuffleFrom = shouldKeepPrevious ? this.currentPlayingPointer + 1 : 0
 
