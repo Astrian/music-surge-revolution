@@ -1,22 +1,48 @@
 import log from './debug'
 
+/**
+ * Listener function type for play state changes.
+ * @callback PlayStateChangeListener
+ * @param {boolean} isPlaying - The current playing state
+ */
 type PlayStateChangeListener = (isPlaying: boolean) => void
+
+/**
+ * Listener function type for queue changes.
+ * @callback QueueChangeListener
+ * @param {QueueItem[]} queue - The updated queue array
+ */
 type QueueChangeListener = (queue: QueueItem[]) => void
 
+/**
+ * Music player class that handles audio playback with queue management and seamless transitions.
+ * @class Player
+ */
 class Player {
+	/** The queue of items to be played */
 	private queue: QueueItem[]
+	/** Current playing state */
 	private isPlaying: boolean
+	/** Set of listeners for play state changes */
 	private playStateListeners: Set<PlayStateChangeListener>
+	/** Set of listeners for queue changes */
 	private queueChangeListeners: Set<QueueChangeListener>
+	/** Web Audio API context for audio processing */
 	private context: AudioContext
+	/** Audio source node for the current track */
 	private currentSource: MediaElementAudioSourceNode | null
+	/** HTML audio element for the current track */
 	private currentAudio: HTMLAudioElement | null
+	/** Audio source node for the next track (preloaded) */
 	private nextSource: MediaElementAudioSourceNode | null
+	/** HTML audio element for the next track (preloaded) */
 	private nextAudio: HTMLAudioElement | null
+	/** Index of the currently playing item in the queue */
 	private currentPlayingPointer: number
 
 	/**
-	 * Create a new player instance.
+	 * Creates a new player instance.
+	 * Initializes the AudioContext and sets up the initial state.
 	 * @constructor
 	 */
 	constructor() {
@@ -33,8 +59,9 @@ class Player {
 	}
 
 	/**
-	 * Replace the play queue with a new queue.
-	 * @param queue The new play queue array.
+	 * Replaces the entire play queue with a new queue.
+	 * @param {QueueItem[]} queue - The new play queue array
+	 * @fires QueueChangeListener
 	 */
 	replaceQueue = (queue: QueueItem[]) => {
 		this.queue = queue
@@ -42,17 +69,17 @@ class Player {
 	}
 
 	/**
-	 * Fetch the current play queue.
-	 * @returns A deep copy of the current play queue to prevent external modification.
+	 * Fetches the current play queue.
+	 * @returns {QueueItem[]} A deep copy of the current play queue to prevent external modification
 	 */
 	fetchQueue = (): QueueItem[] => {
 		return structuredClone(this.queue)
 	}
 
 	/**
-	 * Subscribe to play state changes.
-	 * @param listener Callback function that will be called when play state changes.
-	 * @returns Destroy function to remove the listener.
+	 * Subscribes to play state changes.
+	 * @param {PlayStateChangeListener} listener - Callback function that will be called when play state changes
+	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener
 	 */
 	onPlayStateChange = (listener: PlayStateChangeListener): { destroy: () => void } => {
 		this.playStateListeners.add(listener)
@@ -64,8 +91,10 @@ class Player {
 	}
 
 	/**
-	 * Set the playing state and notify all listeners.
-	 * @param playing The new playing state.
+	 * Toggles the playing state or sets it to a specific value.
+	 * @param {boolean} [playing] - Optional specific playing state. If not provided, toggles current state
+	 * @returns {Promise<void>}
+	 * @fires PlayStateChangeListener
 	 */
 	togglePlaying = async (playing?: boolean) => {
 		const newState = playing !== undefined ? playing : !this.isPlaying
@@ -89,15 +118,17 @@ class Player {
 	}
 
 	/**
-	 * Get the current playing state.
-	 * @returns Current playing state.
+	 * Gets the current playing state.
+	 * @returns {boolean} Current playing state (true if playing, false if paused/stopped)
 	 */
 	getPlayingState = (): boolean => {
 		return this.isPlaying
 	}
 
 	/**
-	 * Skip to the next track in the queue.
+	 * Skips to the next track in the queue.
+	 * Cleans up current audio and immediately starts playing the next track.
+	 * @returns {Promise<void>}
 	 */
 	skipToNext = async () => {
 		if (this.currentPlayingPointer + 1 < this.queue.length) {
@@ -127,7 +158,10 @@ class Player {
 	}
 
 	/**
-	 * Skip to the previous track in the queue.
+	 * Skips to the previous track or restarts the current track.
+	 * If current track has played < 5 seconds, goes to previous track.
+	 * Otherwise, restarts the current track from the beginning.
+	 * @returns {Promise<void>}
 	 */
 	skipToPrevious = async () => {
 		// If current track has played less than 5 seconds, go to previous track
@@ -171,9 +205,9 @@ class Player {
 	}
 
 	/**
-	 * Subscribe to queue changes.
-	 * @param listener Callback function that will be called when queue changes.
-	 * @returns Destroy function to remove the listener.
+	 * Subscribes to queue changes.
+	 * @param {QueueChangeListener} listener - Callback function that will be called when queue changes
+	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener
 	 */
 	onQueueChange = (listener: QueueChangeListener): { destroy: () => void } => {
 		this.queueChangeListeners.add(listener)
@@ -185,7 +219,9 @@ class Player {
 	}
 
 	/**
-	 * Notify all queue listeners about queue changes.
+	 * Notifies all queue listeners about queue changes.
+	 * Sends a deep copy of the queue to prevent external modifications.
+	 * @private
 	 */
 	private notifyQueueChange = () => {
 		const queueCopy = structuredClone(this.queue)
@@ -194,6 +230,13 @@ class Player {
 		})
 	}
 
+	/**
+	 * Starts or resumes playback of the current track.
+	 * Handles AudioContext resumption, audio creation, and event listener setup.
+	 * @private
+	 * @returns {Promise<void>}
+	 * @throws {DOMException} When autoplay is blocked or audio format is unsupported
+	 */
 	private async startPlay() {
 		// fetch the first item inside the queue
 		log.player(this.queue[this.currentPlayingPointer])
@@ -275,6 +318,12 @@ class Player {
 		}
 	}
 
+	/**
+	 * Pauses the current playback.
+	 * Also pauses any preloaded next track.
+	 * @private
+	 * @returns {Promise<void>}
+	 */
 	private async pausePlay() {
 		this.currentAudio?.pause()
 		// Also pause the next audio if it's preloaded
@@ -283,6 +332,11 @@ class Player {
 		}
 	}
 
+	/**
+	 * Reports media metadata to the browser's MediaSession API.
+	 * Sets up media control handlers for play/pause/next/previous.
+	 * @private
+	 */
 	private reportMetadata() {
 		navigator.mediaSession.metadata = new MediaMetadata(this.queue[this.currentPlayingPointer].metadata)
 		navigator.mediaSession.setActionHandler('nexttrack', this.skipToNext)
@@ -298,6 +352,13 @@ class Player {
 		})
 	}
 
+	/**
+	 * Plays the next track in the queue.
+	 * Handles seamless transition from current to next track.
+	 * If next track is not preloaded, creates it on the fly.
+	 * @private
+	 * @returns {Promise<void>}
+	 */
 	private async playNext() {
 		// Check if there's a next track ready
 		if (!this.nextAudio) {
@@ -390,6 +451,11 @@ class Player {
 		}
 	}
 
+	/**
+	 * Schedules and preloads the next track for seamless playback.
+	 * Creates audio element, connects to AudioContext, and pre-buffers the audio.
+	 * @private
+	 */
 	private scheduleNext() {
 		// Check if there's already a next track scheduled
 		if (this.nextAudio !== null) {
