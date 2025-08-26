@@ -169,32 +169,23 @@ class Player {
 
 	/**
 	 * Skips to the next track in the queue.
-	 * Cleans up current audio and immediately starts playing the next track.
+	 * Respects the current play state - only auto-plays if currently playing.
 	 * @returns {Promise<void>}
 	 */
 	skipToNext = async () => {
 		if (this.currentPlayingPointer + 1 < this.queue.length) {
 			log.player('Skipping to next track')
 
-			// Clean up current audio first
-			if (this.currentAudio) {
-				this.currentAudio.pause()
-				this.currentAudio.removeEventListener('ended', () => {})
-				this.currentAudio.removeEventListener('timeupdate', () => {})
-				this.currentAudio = null
-				this.currentSource = null
-			}
+			const wasPlaying = this.isPlaying
+			const nextTrackIndex = this.currentPlayingPointer + 1
 
-			// Clean up next audio if exists
-			if (this.nextAudio) {
-				this.nextAudio = null
-				this.nextSource = null
-			}
+			// Switch to the next track without auto-playing
+			await this.switchToTrack(nextTrackIndex)
 
-			// Move to next track and start playing
-			this.currentPlayingPointer++
-			await this.startPlay()
-			this.reportMetadata()
+			// If music was playing before, resume playback
+			if (wasPlaying) {
+				await this.startPlay()
+			}
 		} else {
 			log.player('No next track available')
 		}
@@ -204,46 +195,49 @@ class Player {
 	 * Skips to the previous track or restarts the current track.
 	 * If current track has played < 5 seconds, goes to previous track.
 	 * Otherwise, restarts the current track from the beginning.
+	 * Respects the current play state - only auto-plays if currently playing.
 	 * @returns {Promise<void>}
 	 */
 	skipToPrevious = async () => {
+		const wasPlaying = this.isPlaying
+
 		// If current track has played less than 5 seconds, go to previous track
 		// Otherwise, restart the current track
 		if ((this.currentAudio?.currentTime ?? 0) < 5 && this.currentPlayingPointer > 0) {
 			log.player('current play progress is less than 5 secs')
-			if (this.currentPlayingPointer > 0) {
-				log.player('Skipping to previous track')
+			log.player('Skipping to previous track')
 
-				// Clean up current audio
-				if (this.currentAudio) {
-					this.currentAudio.pause()
-					this.currentAudio.removeEventListener('ended', () => {})
-					this.currentAudio.removeEventListener('timeupdate', () => {})
-					this.currentAudio = null
-					this.currentSource = null
-				}
+			const prevTrackIndex = this.currentPlayingPointer - 1
 
-				// Clean up next audio if exists
-				if (this.nextAudio) {
-					this.nextAudio = null
-					this.nextSource = null
-				}
+			// Switch to the previous track without auto-playing
+			await this.switchToTrack(prevTrackIndex)
 
-				this.currentPlayingPointer -= 1
+			// If music was playing before, resume playback
+			if (wasPlaying) {
 				await this.startPlay()
-				this.reportMetadata()
-			} else {
-				// Restart current track if at the beginning of queue
-				if (this.currentAudio) {
-					this.currentAudio.currentTime = 0
-					await this.currentAudio.play()
-				}
 			}
 		} else {
 			// Restart current track from beginning
 			if (this.currentAudio) {
 				this.currentAudio.currentTime = 0
-				await this.currentAudio.play()
+
+				// Trigger progress change notification for the reset
+				if (this.progressListeners.size > 0) {
+					const progress: PlaybackProgress = {
+						currentTime: 0,
+						duration: this.currentAudio.duration || 0,
+						percentage: 0,
+					}
+
+					this.progressListeners.forEach((listener) => {
+						listener(progress)
+					})
+				}
+
+				// Only resume playing if it was playing before
+				if (wasPlaying && this.currentAudio.paused) {
+					await this.currentAudio.play()
+				}
 			}
 		}
 	}
@@ -600,6 +594,82 @@ class Player {
 			window.clearInterval(this.progressTimer)
 			this.progressTimer = null
 		}
+	}
+
+	/**
+	 * Switches to a specific track without auto-playing.
+	 * Prepares the audio element and resets progress to 0.
+	 * @private
+	 * @param {number} trackIndex - The index of the track to switch to
+	 */
+	private async switchToTrack(trackIndex: number) {
+		if (trackIndex < 0 || trackIndex >= this.queue.length) {
+			log.player('Invalid track index:', trackIndex)
+			return
+		}
+
+		// Clean up current audio
+		if (this.currentAudio) {
+			this.currentAudio.pause()
+			this.currentAudio.removeEventListener('ended', () => {})
+			this.currentAudio.removeEventListener('timeupdate', () => {})
+			this.currentAudio = null
+			this.currentSource = null
+		}
+
+		// Clean up next audio if exists
+		if (this.nextAudio) {
+			this.nextAudio = null
+			this.nextSource = null
+		}
+
+		// Update pointer
+		this.currentPlayingPointer = trackIndex
+
+		// Create new audio element but don't play
+		this.currentAudio = new Audio(this.queue[trackIndex].url)
+		this.currentAudio.crossOrigin = 'true'
+		this.currentSource = this.context.createMediaElementSource(this.currentAudio)
+		this.currentSource.connect(this.context.destination)
+
+		// Set up event listeners
+		this.currentAudio.addEventListener('ended', () => {
+			log.player('Current track ended, switching to next')
+			this.playNext()
+		})
+
+		this.currentAudio.addEventListener('timeupdate', () => {
+			if (this.currentAudio && !this.nextAudio) {
+				const timeRemaining = this.currentAudio.duration - this.currentAudio.currentTime
+				const halfwayPoint = this.currentAudio.duration / 2
+
+				if (timeRemaining < 20 || this.currentAudio.currentTime > halfwayPoint) {
+					this.scheduleNext()
+				}
+			}
+		})
+
+		// Reset progress to 0
+		this.currentAudio.currentTime = 0
+
+		// Trigger progress change notification for the reset
+		if (this.progressListeners.size > 0) {
+			const progress: PlaybackProgress = {
+				currentTime: 0,
+				duration: this.currentAudio.duration || 0,
+				percentage: 0,
+			}
+
+			this.progressListeners.forEach((listener) => {
+				listener(progress)
+			})
+		}
+
+		// Update metadata without starting playback
+		this.reportMetadata()
+		this.notifyQueueChange()
+
+		log.player(`Switched to track: ${this.queue[trackIndex]?.metadata?.title || 'Unknown'}`)
 	}
 }
 
