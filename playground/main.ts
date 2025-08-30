@@ -12,8 +12,8 @@ playerInstance.onQueueChange((queue) => {
 		let artwork_url = ''
 		const size = 0
 		for (const artwork of item.metadata?.artwork ?? []) {
-			if (artwork.sizes && !isNaN(parseInt(artwork.sizes.split('x')[0]))) {
-				if (parseInt(artwork.sizes.split('x')[0]) > size) {
+			if (artwork.sizes && !Number.isNaN(parseInt(artwork.sizes.split('x')[0], 10))) {
+				if (parseInt(artwork.sizes.split('x')[0], 10) > size) {
 					artwork_url = artwork.src
 				}
 			} else if (artwork_url !== '') {
@@ -40,6 +40,12 @@ playerInstance.onPlayStateChange((state) => {
 })
 
 playerInstance.replaceQueue([
+	{
+		url: 'https://res01.hycdn.cn/bd83b36037f79a179b5e045dad7a5838/68AE5910/siren/audio/20230626/85b64e95ff0d08df772fb43539c369e4.wav',
+	},
+	{
+		url: 'https://res01.hycdn.cn/073dc3fd70edfadd1362aa51c7a0d6c3/68AE58EA/siren/audio/20230626/eddcb4bf086109df1305ee5ee6f96d64.wav',
+	},
 	{
 		url: '/sample1.wav',
 		metadata: {
@@ -70,6 +76,21 @@ playerInstance.replaceQueue([
 			],
 		},
 	},
+	{
+		url: '/sample3.wav',
+		metadata: {
+			title: 'The Moss',
+			artist: 'Cosmo Sheldrake',
+			album: 'The Moss / Solar',
+			artwork: [
+				{
+					src: '/artwork3.jpg',
+					sizes: '500x500',
+					type: 'image/jpeg',
+				},
+			],
+		},
+	},
 ])
 
 document.getElementById('play_pause_btn')?.addEventListener('click', () => {
@@ -83,8 +104,8 @@ playerInstance.onCurrentPlayingChange((track: QueueItem) => {
 	let artwork_url = ''
 	const size = 0
 	for (const artwork of track.metadata?.artwork ?? []) {
-		if (artwork.sizes && !isNaN(parseInt(artwork.sizes.split('x')[0]))) {
-			if (parseInt(artwork.sizes.split('x')[0]) > size) {
+		if (artwork.sizes && !Number.isNaN(parseInt(artwork.sizes.split('x')[0], 10))) {
+			if (parseInt(artwork.sizes.split('x')[0], 10) > size) {
 				artwork_url = artwork.src
 			}
 		} else if (artwork_url !== '') {
@@ -133,4 +154,13 @@ document.getElementById('rewind_btn')?.addEventListener('click', () => {
 
 document.getElementById('forward_btn')?.addEventListener('click', () => {
 	playerInstance.skipToNext()
+})
+
+playerInstance.onShuffleChange((state) => {
+	if (state) document.getElementById('shuffle_btn')!.style.color = 'black'
+	else document.getElementById('shuffle_btn')!.style.color = 'gray'
+})
+
+document.getElementById('shuffle_btn')?.addEventListener('click', () => {
+	playerInstance.toggleShuffle()
 })
