@@ -81,7 +81,7 @@ class Player {
 		this.currentAudio = null
 
 		const newOrder = []
-		for (const i in queue) newOrder.push(parseInt(i))
+		for (const i in queue) newOrder.push(parseInt(i, 10))
 		this.order = newOrder
 
 		this.notifyQueueChange()
@@ -634,7 +634,7 @@ class Player {
 		this.nextAudio.addEventListener(
 			'canplaythrough',
 			async () => {
-				if (this.nextAudio && this.nextAudio.paused) {
+				if (this.nextAudio?.paused) {
 					try {
 						// Play silently to ensure the track is fully buffered
 						this.nextAudio.volume = 0
@@ -669,7 +669,7 @@ class Player {
 				const currentTime = this.currentAudio.currentTime
 				const duration = this.currentAudio.duration
 
-				if (!isNaN(duration) && duration > 0) {
+				if (!Number.isNaN(duration) && duration > 0) {
 					const percentage = (currentTime / duration) * 100
 
 					const progress: PlaybackProgress = {
@@ -825,8 +825,8 @@ class Player {
 		const keepRemainRange: number[] = []
 		const shuffleRange: number[] = []
 		for (const i in this.queue) {
-			if (parseInt(i) < startShuffleFrom) keepRemainRange.push(parseInt(i))
-			else shuffleRange.push(parseInt(i))
+			if (parseInt(i, 10) < startShuffleFrom) keepRemainRange.push(parseInt(i, 10))
+			else shuffleRange.push(parseInt(i, 10))
 		}
 
 		// Shuffle the shuffleRange using Fisher-Yates algorithm
@@ -851,7 +851,7 @@ class Player {
 
 		this.order = []
 		for (const i in this.queue) {
-			this.order.push(parseInt(i))
+			this.order.push(parseInt(i, 10))
 		}
 
 		this.currentPlayingPointer = currentPlaying
