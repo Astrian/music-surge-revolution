@@ -45,6 +45,13 @@ declare global {
 	 * @param {boolean} shuffleEnabled - The current shuffle state
 	 */
 	type ShuffleChangeListener = (shuffleEnabled: boolean) => void
+
+	/**
+	 * Listener function type for loop mode changes.
+	 * @callback LoopChangeListener
+	 * @param {'off' | 'entire_queue' | 'single_track'} loopMode - The current loop mode
+	 */
+	type LoopChangeListener = (loopMode: 'off' | 'entire_queue' | 'single_track') => void
 }
 
 export {}

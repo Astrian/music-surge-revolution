@@ -21,6 +21,8 @@ class Player {
 	private progressTimer: number | null
 	/** Set of listeners for shuffle state changes */
 	private shuffleListeners: Set<ShuffleChangeListener>
+	/** Set of listeners for loop mode changes */
+	private loopListeners: Set<LoopChangeListener>
 	/** Web Audio API context for audio processing */
 	private context: AudioContext
 	/** Audio source node for the current track */
@@ -54,6 +56,7 @@ class Player {
 		this.progressListeners = new Set()
 		this.progressTimer = null
 		this.shuffleListeners = new Set()
+		this.loopListeners = new Set()
 		this.context = new AudioContext()
 		this.currentSource = null
 		this.currentAudio = null
@@ -180,6 +183,24 @@ class Player {
 	}
 
 	/**
+	 * Subscribes to loop mode changes.
+	 * @param {LoopChangeListener} listener - Callback function that will be called when loop mode changes
+	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener
+	 */
+	onLoopChange = (listener: LoopChangeListener): { destroy: () => void } => {
+		this.loopListeners.add(listener)
+
+		// Immediately call the listener with the current state
+		listener(this.loop)
+
+		return {
+			destroy: () => {
+				this.loopListeners.delete(listener)
+			},
+		}
+	}
+
+	/**
 	 * Toggles the playing state or sets it to a specific value.
 	 * @param {boolean} [playing] - Optional specific playing state. If not provided, toggles current state
 	 * @returns {Promise<void>}
@@ -249,6 +270,14 @@ class Player {
 	 */
 	getShuffleState = (): boolean => {
 		return this.shuffle
+	}
+
+	/**
+	 * Gets the current loop mode.
+	 * @returns {'off' | 'entire_queue' | 'single_track'} Current loop mode
+	 */
+	getLoopMode = (): 'off' | 'entire_queue' | 'single_track' => {
+		return this.loop
 	}
 
 	/**
@@ -349,6 +378,37 @@ class Player {
 	}
 
 	/**
+	 * Toggle loop mode
+	 * @param {'off' | 'entire_queue' | 'single_track'} mode - Specific the loop mode. Will loop with "off", "entire_queue" and "single_track"
+	 * sequence when not specific.
+	 */
+	toggleLoop = (mode?: 'off' | 'entire_queue' | 'single_track') => {
+		let newMode = this.loop
+		if (mode) newMode = mode
+		else
+			switch (this.loop) {
+				case 'off':
+					newMode = 'entire_queue'
+					break
+				case 'entire_queue':
+					newMode = 'single_track'
+					break
+				case 'single_track':
+					newMode = 'off'
+					break
+			}
+
+		if (newMode === this.loop) return // no change
+		this.loop = newMode
+		log.player(`Loop mode changed to: ${newMode}`)
+
+		// Notify all loop listeners
+		this.loopListeners.forEach((listener) => {
+			listener(newMode)
+		})
+	}
+
+	/**
 	 * Notifies all queue listeners about queue changes.
 	 * Sends a deep copy of the queue in the actual play order.
 	 * @private
@@ -407,8 +467,8 @@ class Player {
 
 			// Add event listener for when the current track ends
 			this.currentAudio.addEventListener('ended', () => {
-				log.player('Current track ended, switching to next')
-				this.playNext()
+				log.player('Current track ended')
+				this.handleTrackEnd()
 			})
 
 			// Add event listener for timeupdate to schedule next track at the right time
@@ -504,13 +564,17 @@ class Player {
 	private async playNext() {
 		// Check if there's a next track ready
 		if (!this.nextAudio) {
-			// If no next track is preloaded, check if there's one in the queue
+			// If no next track is preloaded, check if there's one in the queue or we should loop
 			if (this.currentPlayingPointer + 1 < this.queue.length) {
 				// Create next audio on the fly if not preloaded
 				this.currentPlayingPointer++
 				await this.startPlay()
+			} else if (this.loop === 'entire_queue' && this.queue.length > 0) {
+				// Loop back to first track
+				this.currentPlayingPointer = 0
+				await this.startPlay()
 			} else {
-				// No more tracks, stop playback
+				// No more tracks and not looping, stop playback
 				log.player('No more tracks in queue')
 				this.togglePlaying(false)
 			}
@@ -545,7 +609,14 @@ class Player {
 		// Switch to next track immediately
 		this.currentAudio = this.nextAudio
 		this.currentSource = this.nextSource
-		this.currentPlayingPointer++
+
+		// Update pointer based on loop mode
+		if (this.currentPlayingPointer + 1 >= this.queue.length && this.loop === 'entire_queue') {
+			// Loop back to first track
+			this.currentPlayingPointer = 0
+		} else {
+			this.currentPlayingPointer++
+		}
 
 		// Clear next track references
 		this.nextAudio = null
@@ -553,8 +624,8 @@ class Player {
 
 		// Add event listeners to the new current track
 		this.currentAudio.addEventListener('ended', () => {
-			log.player('Current track ended, switching to next')
-			this.playNext()
+			log.player('Current track ended')
+			this.handleTrackEnd()
 		})
 
 		this.currentAudio.addEventListener('timeupdate', () => {
@@ -606,13 +677,37 @@ class Player {
 			return
 		}
 
-		// Check if there's a next track in the queue
-		const nextPointer = this.currentPlayingPointer + 1
-		const actualNextIndex = this.getActualQueueIndex(nextPointer)
-		const nextTrack = this.queue[actualNextIndex]
+		// Don't schedule next if single track loop is active
+		if (this.loop === 'single_track') {
+			log.player('Single track loop active, not scheduling next')
+			return
+		}
+
+		// Determine the next track based on loop mode
+		let nextPointer = this.currentPlayingPointer + 1
+		let actualNextIndex: number
+		let nextTrack: QueueItem | undefined
+
+		if (nextPointer >= this.queue.length) {
+			// At the end of queue
+			if (this.loop === 'entire_queue' && this.queue.length > 0) {
+				// Loop back to first track
+				nextPointer = 0
+				actualNextIndex = this.getActualQueueIndex(nextPointer)
+				nextTrack = this.queue[actualNextIndex]
+			} else {
+				// No loop, no next track
+				log.player('No next track to schedule (end of queue)')
+				return
+			}
+		} else {
+			// Normal next track
+			actualNextIndex = this.getActualQueueIndex(nextPointer)
+			nextTrack = this.queue[actualNextIndex]
+		}
 
 		if (!nextTrack) {
-			log.player('No next track in queue, skip schedule')
+			log.player('Next track not found')
 			return
 		}
 
@@ -745,8 +840,8 @@ class Player {
 
 		// Set up event listeners
 		this.currentAudio.addEventListener('ended', () => {
-			log.player('Current track ended, switching to next')
-			this.playNext()
+			log.player('Current track ended')
+			this.handleTrackEnd()
 		})
 
 		this.currentAudio.addEventListener('timeupdate', () => {
@@ -857,6 +952,36 @@ class Player {
 		this.currentPlayingPointer = currentPlaying
 
 		log.player('Queue restored to original order')
+	}
+
+	/**
+	 * Handles the end of a track based on the current loop mode.
+	 * @private
+	 */
+	private handleTrackEnd() {
+		if (this.loop === 'single_track') {
+			// Single track loop - replay the same track
+			log.player('Looping single track')
+			if (this.currentAudio) {
+				this.currentAudio.currentTime = 0
+				this.currentAudio.play()
+			}
+		} else if (this.currentPlayingPointer + 1 >= this.queue.length) {
+			// End of queue reached
+			if (this.loop === 'entire_queue') {
+				// Loop entire queue - go back to the first track
+				log.player('Looping entire queue')
+				this.currentPlayingPointer = -1 // Will be incremented to 0 in playNext
+				this.playNext()
+			} else {
+				// No loop - stop playback
+				log.player('End of queue, stopping playback')
+				this.togglePlaying(false)
+			}
+		} else {
+			// Normal next track
+			this.playNext()
+		}
 	}
 }
 

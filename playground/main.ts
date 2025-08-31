@@ -164,3 +164,22 @@ playerInstance.onShuffleChange((state) => {
 document.getElementById('shuffle_btn')?.addEventListener('click', () => {
 	playerInstance.toggleShuffle()
 })
+
+document.getElementById('loop_btn')?.addEventListener('click', () => {
+	playerInstance.toggleLoop()
+})
+
+playerInstance.onLoopChange((state) => {
+	switch (state) {
+		case 'off':
+			document.getElementById('loop_btn')!.innerHTML = '<i class="ri-repeat-2-line"></i>'
+			document.getElementById('loop_btn')!.style.color = 'gray'
+			break
+		case 'entire_queue':
+			document.getElementById('loop_btn')!.style.color = 'black'
+			break
+		case 'single_track':
+			document.getElementById('loop_btn')!.innerHTML = '<i class="ri-repeat-one-line"></i>'
+			break
+	}
+})
