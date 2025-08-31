@@ -183,3 +183,21 @@ playerInstance.onLoopChange((state) => {
 			break
 	}
 })
+
+document.getElementById('add_track_btn')?.addEventListener('click', () => {
+	playerInstance.appendTrack({
+		url: '/sample4.wav',
+		metadata: {
+			title: '自己跳舞指南（2022 Remaster）',
+			artist: '梁欢',
+			album: '我们去未来（2022 Remaster）',
+			artwork: [
+				{
+					src: 'artwork4.jpg',
+					sizes: '3000x3000',
+					type: 'image/jpeg',
+				},
+			],
+		},
+	})
+})

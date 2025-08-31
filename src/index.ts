@@ -409,6 +409,19 @@ class Player {
 	}
 
 	/**
+	 * Append new queue item
+	 * @param {QueueItem} track - The new track item appended
+	 */
+	appendTrack = (track: QueueItem) => {
+		this.queue.push(track)
+		this.order.push(this.order.length) // even in shuffle mode, append to the end of the queue
+
+		for (const listener of this.queueChangeListeners) {
+			listener(this.queue)
+		}
+	}
+
+	/**
 	 * Notifies all queue listeners about queue changes.
 	 * Sends a deep copy of the queue in the actual play order.
 	 * @private

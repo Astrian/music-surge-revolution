@@ -95,7 +95,8 @@ body {
 }
 
 #shuffle_btn,
-#loop_btn {
+#loop_btn,
+#add_track_btn {
 	flex: 1;
 }
 
