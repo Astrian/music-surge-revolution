@@ -1,0 +1,14 @@
+*
+
+# Metadata
+!.npmignore
+!package.json
+!package-lock.json
+!README.md
+!LICENSE
+
+# Dist folder
+!dist/
+!dist/**/
+!dist/**/*.js
+!dist/**/*.map
