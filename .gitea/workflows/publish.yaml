@@ -1,0 +1,50 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build project
+        run: npm run build
+        
+      - name: Configure package for dev branch
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          VERSION="0.0.0-${TIMESTAMP}"
+          
+          npm pkg set name="@astrian/music-surge-revolution"
+          npm pkg set version="${VERSION}"
+          
+          echo "Publishing dev version: ${VERSION}"
+          
+      - name: Publish to NPM (main branch)
+        if: github.ref == 'refs/heads/main'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          
+      - name: Publish to NPM (dev branch)
+        if: github.ref == 'refs/heads/dev'
+        run: npm publish --access private
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

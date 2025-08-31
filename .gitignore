@@ -4,7 +4,6 @@
 !LICENSE
 !README.md
 !.gitignore
-!.npmignore
 
 # Source code folder
 !playground
@@ -27,6 +26,7 @@
 # npm package menifest
 !package.json
 !package-lock.json
+!.npmignore
 
 # Utilities config
 !vite.config.js
@@ -36,3 +36,8 @@
 # Husky Git hooks
 !.husky
 !.husky/**
+
+# Gitea Workflows
+!.gitea/
+!.gitea/workflows/
+!.gitea/workflows/*.yaml
