@@ -2,9 +2,19 @@
 	"name": "music-surge-revolution",
 	"version": "0.0.0",
 	"type": "module",
+	"main": "./dist/index.umd.js",
+	"module": "./dist/index.es.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.es.js",
+			"require": "./dist/index.umd.js"
+		}
+	},
 	"scripts": {
 		"dev": "DEBUG=msrpkg:* vite",
-		"build": "tsc && vite build",
+		"build": "vite build",
 		"preview": "vite preview",
 		"lint": "biome lint ./src",
 		"format": "biome format --write ./src",
@@ -20,7 +30,8 @@
 		"lint-staged": "^16.1.5",
 		"remixicon": "^4.6.0",
 		"typescript": "~5.8.3",
-		"vite": "^7.0.4"
+		"vite": "^7.0.4",
+		"vite-plugin-dts": "^4.5.4"
 	},
 	"lint-staged": {
 		"*.{js,jsx,ts,tsx,json,css,md}": [

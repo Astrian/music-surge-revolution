@@ -1,5 +1,9 @@
 import log from './debug'
 
+// Import global type definitions
+import '../types/QueueItem'
+import '../types/listeners'
+
 /**
  * Music player class that handles audio playback with queue management and seamless transitions.
  * @class Player

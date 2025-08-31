@@ -1,5 +1,6 @@
 import path from 'path'
 import { defineConfig } from 'vite'
+import dts from 'vite-plugin-dts'
 
 export default defineConfig(({ mode }) => ({
 	build: {
@@ -23,7 +24,18 @@ export default defineConfig(({ mode }) => ({
 			},
 		},
 	},
-	plugins: [],
+	plugins:
+		mode === 'production'
+			? [
+					dts({
+						include: ['src/**/*.ts', 'types/**/*.d.ts'],
+						outDir: 'dist',
+						rollupTypes: false,
+						insertTypesEntry: true,
+						copyDtsFiles: true,
+					}),
+				]
+			: [],
 	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, './src'),

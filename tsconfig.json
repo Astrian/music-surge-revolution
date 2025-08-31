@@ -11,7 +11,10 @@
 		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 		"moduleDetection": "force",
-		"noEmit": true,
+		"noEmit": false,
+		"declaration": true,
+		"declarationDir": "./dist",
+		"emitDeclarationOnly": true,
 
 		/* Linting */
 		"strict": true,
