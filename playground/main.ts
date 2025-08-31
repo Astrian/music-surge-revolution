@@ -201,3 +201,75 @@ document.getElementById('add_track_btn')?.addEventListener('click', () => {
 		},
 	})
 })
+
+// Progress bar click to seek
+const progressBar = document.getElementById('progress_bar')
+let isDragging = false
+
+// Click to seek
+progressBar?.addEventListener('click', (e: MouseEvent) => {
+	if (isDragging) return // Don't seek on click if we're dragging
+
+	const rect = progressBar.getBoundingClientRect()
+	const clickX = e.clientX - rect.left
+	const percentage = (clickX / rect.width) * 100
+
+	// Clamp to 0-100
+	const clampedPercentage = Math.max(0, Math.min(100, percentage))
+
+	// Seek to the calculated percentage
+	const success = playerInstance.seekToPercentage(clampedPercentage)
+
+	if (success) {
+		console.log(`Seeked to ${clampedPercentage.toFixed(1)}%`)
+	}
+})
+
+// Drag to seek functionality
+progressBar?.addEventListener('mousedown', (e: MouseEvent) => {
+	isDragging = true
+	const rect = progressBar.getBoundingClientRect()
+
+	// Calculate initial percentage
+	const clickX = e.clientX - rect.left
+	const percentage = (clickX / rect.width) * 100
+	const clampedPercentage = Math.max(0, Math.min(100, percentage))
+
+	// Immediately seek to the position
+	playerInstance.seekToPercentage(clampedPercentage)
+
+	// Handle dragging
+	const handleMouseMove = (moveEvent: MouseEvent) => {
+		if (!isDragging) return
+
+		const moveX = moveEvent.clientX - rect.left
+		const movePercentage = (moveX / rect.width) * 100
+		const clampedMovePercentage = Math.max(0, Math.min(100, movePercentage))
+
+		// Update the progress bar visually (optional - for immediate feedback)
+		const progressBarInner = document.getElementById('progress_bar_inner')
+		if (progressBarInner) {
+			progressBarInner.style.width = `${clampedMovePercentage}%`
+		}
+
+		// Seek to the new position
+		playerInstance.seekToPercentage(clampedMovePercentage)
+	}
+
+	const handleMouseUp = () => {
+		isDragging = false
+		document.removeEventListener('mousemove', handleMouseMove)
+		document.removeEventListener('mouseup', handleMouseUp)
+	}
+
+	// Add listeners to document to handle dragging outside the progress bar
+	document.addEventListener('mousemove', handleMouseMove)
+	document.addEventListener('mouseup', handleMouseUp)
+})
+
+// Prevent text selection while dragging
+progressBar?.addEventListener('selectstart', (e) => {
+	if (isDragging) {
+		e.preventDefault()
+	}
+})

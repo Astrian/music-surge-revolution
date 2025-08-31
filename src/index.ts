@@ -289,6 +289,100 @@ class Player {
 	}
 
 	/**
+	 * Seeks to a specific position in the current track.
+	 * @param {number} time - The position to seek to in seconds
+	 * @returns {boolean} Success status - true if seek was successful, false otherwise
+	 */
+	seekTo = (time: number): boolean => {
+		if (!this.currentAudio) {
+			log.player('No audio element to seek')
+			return false
+		}
+
+		const duration = this.currentAudio.duration
+
+		// Check if duration is valid
+		if (Number.isNaN(duration) || duration <= 0) {
+			log.player('Invalid audio duration, cannot seek')
+			return false
+		}
+
+		// Clamp the seek time to valid range [0, duration]
+		const clampedTime = Math.max(0, Math.min(time, duration))
+
+		log.player(`Seeking to ${clampedTime} seconds (duration: ${duration})`)
+
+		try {
+			this.currentAudio.currentTime = clampedTime
+
+			// Immediately notify progress listeners about the seek
+			if (this.progressListeners.size > 0) {
+				const percentage = (clampedTime / duration) * 100
+				const progress: PlaybackProgress = {
+					currentTime: clampedTime,
+					duration,
+					percentage,
+				}
+
+				this.progressListeners.forEach((listener) => {
+					listener(progress)
+				})
+			}
+
+			// Check if we need to schedule/cancel next track based on new position
+			this.updateNextTrackSchedule()
+
+			return true
+		} catch (error) {
+			log.player('Error during seek:', error)
+			return false
+		}
+	}
+
+	/**
+	 * Seeks by a percentage of the total duration.
+	 * @param {number} percentage - The percentage to seek to (0-100)
+	 * @returns {boolean} Success status - true if seek was successful, false otherwise
+	 */
+	seekToPercentage = (percentage: number): boolean => {
+		if (!this.currentAudio) {
+			log.player('No audio element to seek')
+			return false
+		}
+
+		const duration = this.currentAudio.duration
+
+		// Check if duration is valid
+		if (Number.isNaN(duration) || duration <= 0) {
+			log.player('Invalid audio duration, cannot seek')
+			return false
+		}
+
+		// Clamp percentage to valid range [0, 100]
+		const clampedPercentage = Math.max(0, Math.min(percentage, 100))
+		const targetTime = (clampedPercentage / 100) * duration
+
+		return this.seekTo(targetTime)
+	}
+
+	/**
+	 * Seeks forward or backward by a specified number of seconds.
+	 * @param {number} seconds - Number of seconds to seek (negative for backward, positive for forward)
+	 * @returns {boolean} Success status - true if seek was successful, false otherwise
+	 */
+	seekRelative = (seconds: number): boolean => {
+		if (!this.currentAudio) {
+			log.player('No audio element to seek')
+			return false
+		}
+
+		const currentTime = this.currentAudio.currentTime
+		const targetTime = currentTime + seconds
+
+		return this.seekTo(targetTime)
+	}
+
+	/**
 	 * Skips to the next track in the queue.
 	 * Respects the current play state - only auto-plays if currently playing.
 	 * @returns {Promise<void>}
@@ -1004,6 +1098,37 @@ class Player {
 		} else {
 			// Normal next track
 			this.playNext()
+		}
+	}
+
+	/**
+	 * Updates the next track scheduling based on current playback position.
+	 * Called after seeking to determine if we need to schedule or cancel the next track.
+	 * @private
+	 */
+	private updateNextTrackSchedule() {
+		if (!this.currentAudio) return
+
+		const currentTime = this.currentAudio.currentTime
+		const duration = this.currentAudio.duration
+
+		if (Number.isNaN(duration) || duration <= 0) return
+
+		const timeRemaining = duration - currentTime
+		const halfwayPoint = duration / 2
+
+		// Check if we should schedule the next track
+		const shouldScheduleNext = timeRemaining < 20 || currentTime > halfwayPoint
+
+		if (shouldScheduleNext && !this.nextAudio) {
+			// We should have next track scheduled but don't - schedule it now
+			log.player('Scheduling next track after seek')
+			this.scheduleNext()
+		} else if (!shouldScheduleNext && this.nextAudio) {
+			// We have next track scheduled but shouldn't - cancel it
+			log.player('Canceling next track schedule after seek')
+			this.nextAudio = null
+			this.nextSource = null
 		}
 	}
 }
