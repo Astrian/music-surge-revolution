@@ -14,14 +14,7 @@ export default defineConfig(({ mode }) => ({
 		outDir: 'dist',
 		copyPublicDir: false, // 禁止复制 public 文件夹到 dist
 		rollupOptions: {
-			external: (id) => {
-				// 排除 node_modules 和非 src 目录的文件
-				if (id.includes('node_modules')) return true
-				const resolved = path.resolve(id)
-				const srcPath = path.resolve(__dirname, 'src')
-				// 只包含 src 目录下的文件
-				return !resolved.startsWith(srcPath) && !id.startsWith('./src') && !id.startsWith('src/')
-			},
+			// 不设置 external，让 Vite 打包所有依赖
 		},
 	},
 	plugins:
