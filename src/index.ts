@@ -1,4 +1,14 @@
 import log from './debug'
+import type {
+	CurrentPlayingChangeListener,
+	LoopChangeListener,
+	PlaybackProgress,
+	PlaybackProgressListener,
+	PlayStateChangeListener,
+	QueueChangeListener,
+	QueueItem,
+	ShuffleChangeListener,
+} from './types'
 
 /**
  * Music player class that handles audio playback with queue management and seamless transitions.
@@ -1134,3 +1144,15 @@ class Player {
 }
 
 export { Player }
+
+// 重新导出所有类型供使用者使用
+export type {
+	CurrentPlayingChangeListener,
+	LoopChangeListener,
+	PlaybackProgress,
+	PlaybackProgressListener,
+	PlayStateChangeListener,
+	QueueChangeListener,
+	QueueItem,
+	ShuffleChangeListener,
+} from './types'

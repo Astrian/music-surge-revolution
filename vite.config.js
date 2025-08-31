@@ -21,11 +21,12 @@ export default defineConfig(({ mode }) => ({
 		mode === 'production'
 			? [
 					dts({
-						include: ['src/**/*.ts', 'types/**/*.d.ts'],
+						include: ['src/**/*.ts'],
 						outDir: 'dist',
-						rollupTypes: false,
+						rollupTypes: true,
 						insertTypesEntry: true,
-						copyDtsFiles: true,
+						copyDtsFiles: false,
+						staticImport: true,
 					}),
 				]
 			: [],
