@@ -416,9 +416,7 @@ class Player {
 		this.queue.push(track)
 		this.order.push(this.order.length) // even in shuffle mode, append to the end of the queue
 
-		for (const listener of this.queueChangeListeners) {
-			listener(this.queue)
-		}
+		this.notifyQueueChange()
 	}
 
 	/**
