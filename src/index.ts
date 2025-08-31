@@ -962,7 +962,19 @@ class Player {
 			this.order.push(parseInt(i, 10))
 		}
 
-		this.currentPlayingPointer = currentPlaying
+		// Only adjust currentPlayingPointer if there's active playback
+		// Don't adjust if: no audio exists, or audio exists but hasn't started playing
+		const hasActivePlayback = this.currentAudio && (this.currentAudio.currentTime > 0 || !this.currentAudio.paused)
+
+		if (hasActivePlayback) {
+			// Find the new position of the currently playing track in the restored order
+			this.currentPlayingPointer = this.order.indexOf(currentPlaying)
+			if (this.currentPlayingPointer === -1) {
+				// Fallback to 0 if current track not found (shouldn't happen)
+				this.currentPlayingPointer = 0
+			}
+		}
+		// Otherwise keep currentPlayingPointer as is (typically 0 for no playback)
 
 		log.player('Queue restored to original order')
 	}
