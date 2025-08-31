@@ -25,7 +25,6 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.2",
 		"@types/debug": "^4.1.12",
-		"debug": "^4.4.1",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.1.5",
 		"remixicon": "^4.6.0",
@@ -39,6 +38,6 @@
 		]
 	},
 	"dependencies": {
-		"@astrian/music-surge-revolution": "^0.0.0-20250831020059"
+		"debug": "^4.4.1"
 	}
 }
