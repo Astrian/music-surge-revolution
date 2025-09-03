@@ -17,6 +17,15 @@ export interface QueueItem {
 			type?: 'image/jpeg' | 'image/png'
 		}[]
 	}
+
+	/**
+	 * Optional extra custom fields. Very useful when you need to
+	 * attach extra contents (lyrics, extra resources URL, etc.)
+	 * into the item.
+	 */
+	extra?: {
+		[key: string]: unknown
+	}
 }
 
 /**
