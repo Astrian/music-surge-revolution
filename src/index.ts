@@ -468,6 +468,34 @@ class Player {
 	}
 
 	/**
+	 * Play a specific track at the given index in the queue.
+	 * This method allows jumping to any track in the queue and will maintain the current play/pause state.
+	 * @param {number} index - The index of the track to play (0-based, based on current play order)
+	 * @returns {Promise<void>}
+	 */
+	playTrackAt = async (index: number): Promise<void> => {
+		// Validate index
+		if (index < 0 || index >= this.queue.length) {
+			log.player('Invalid track index:', index)
+			throw new Error(`Invalid track index: ${index}. Queue length: ${this.queue.length}`)
+		}
+
+		// Save current playing state
+		const wasPlaying = this.isPlaying
+
+		log.player(`Jumping to track at index ${index}`)
+
+		// Switch to the specified track without auto-playing
+		await this.switchToTrack(index)
+
+		// If music was playing before, resume playback
+		if (wasPlaying && this.currentAudio?.paused) {
+			await this.currentAudio.play()
+			log.player('Resumed playback after track jump')
+		}
+	}
+
+	/**
 	 * Subscribes to queue changes.
 	 * @param {QueueChangeListener} listener - Callback function that will be called when queue changes
 	 * @returns {{destroy: () => void}} An object with a destroy method to unsubscribe the listener

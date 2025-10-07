@@ -151,6 +151,22 @@ body {
 	margin: 1rem 0;
 	gap: 0.5rem;
 	align-items: center;
+	padding: 0.5rem;
+	border-radius: 0.25rem;
+	transition: background-color 0.2s ease;
+}
+
+.queue_item:hover {
+	background-color: rgba(0, 0, 0, 0.1);
+}
+
+.queue_item.currently-playing {
+	background-color: rgba(0, 0, 0, 0.2);
+	font-weight: bold;
+}
+
+.queue_item.currently-playing .title {
+	color: #2563eb;
 }
 
 .queue_item .artwork {

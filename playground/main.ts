@@ -5,10 +5,13 @@ import { Player } from '../src'
 
 const playerInstance = new Player()
 
+let currentPlayingIndex = -1
+
 playerInstance.onQueueChange((queue) => {
 	let list_html = ''
 
-	for (const item of queue) {
+	for (let i = 0; i < queue.length; i++) {
+		const item = queue[i]
 		let artwork_url = ''
 		const size = 0
 		for (const artwork of item.metadata?.artwork ?? []) {
@@ -20,7 +23,8 @@ playerInstance.onQueueChange((queue) => {
 				artwork_url = artwork.src
 			}
 		}
-		list_html += `<div class="queue_item">
+		const isCurrentlyPlaying = i === currentPlayingIndex
+		list_html += `<div class="queue_item ${isCurrentlyPlaying ? 'currently-playing' : ''}" data-index="${i}" style="cursor: pointer;">
 						<div class="artwork">
 							${artwork_url === '' ? '' : `<img src="${artwork_url}" />`}
 						</div>
@@ -32,6 +36,16 @@ playerInstance.onQueueChange((queue) => {
 	}
 
 	document.getElementById('queue')!.innerHTML = list_html
+
+	// Add click event listeners to queue items
+	const queueItems = document.querySelectorAll('.queue_item')
+	queueItems.forEach((item) => {
+		item.addEventListener('click', (e) => {
+			const index = parseInt((e.currentTarget as HTMLElement).dataset.index || '0')
+			console.log(`Playing track at index ${index}`)
+			playerInstance.playTrackAt(index)
+		})
+	})
 })
 
 playerInstance.onPlayStateChange((state) => {
@@ -99,6 +113,26 @@ document.getElementById('play_pause_btn')?.addEventListener('click', () => {
 
 playerInstance.onCurrentPlayingChange((track: QueueItem) => {
 	console.log(track)
+
+	// Update current playing index by finding the track in the queue
+	const queue = playerInstance.fetchQueue()
+	currentPlayingIndex = queue.findIndex(
+		(item) => item.url === track.url && JSON.stringify(item.metadata) === JSON.stringify(track.metadata),
+	)
+
+	// Re-render queue to update highlighting
+	const queueHtml = document.getElementById('queue')!.innerHTML
+	if (queueHtml) {
+		// Trigger queue change event to re-render with updated highlighting
+		const queueItems = document.querySelectorAll('.queue_item')
+		queueItems.forEach((item, index) => {
+			if (index === currentPlayingIndex) {
+				item.classList.add('currently-playing')
+			} else {
+				item.classList.remove('currently-playing')
+			}
+		})
+	}
 
 	// Attach artwork
 	let artwork_url = ''
